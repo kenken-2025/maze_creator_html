@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>maze_creater</title>
+    <style>
+        .cell{
+            width: 10px;
+            height: 10px;
+            display: inline-block;
+
+        }
+        .small-height-cell{
+            width: 10px;
+            height: 5px;
+            display: inline-block;
+
+        }
+        .small-width-cell{
+            width: 5px;
+            height: 10px;
+            display: inline-block;
+
+        }
+        .small-height-width-cell{
+            width:5px;
+            height: 5px;
+            display: inline-block;
+
+        }
+        .not-return{
+            display: inline-block;
+        }
+        .wall{
+            background-color: black;
+        }
+        .blank{
+            background-color: white;
+        }
+
+        
+    </style>
+    <script>
+
+
+
+
+function show_answer(){
+    
+    let a = document.getElementById("is_finished");
+    let checkbox = document.getElementById("checkbox");
+    if(checkbox.checked || a.value == "true"){
+        let root = document.querySelectorAll(".answer");
+        let len = root.length;
+        if(len >= 1){
+            for(let i = 0; i < len; i++){
+                root[i].style.backgroundColor = "skyblue";
+            }           
+            let btn = document.getElementById("show_answer_button");
+            btn.value = "答えを隠す";
+            btn.setAttribute("onclick","hide_answer()");
+        }
+    }
+}
+
+function hide_answer(){
+    let root = document.querySelectorAll(".answer");
+    let len = root.length;
+    if(len >= 1){
+        for(let i = 0; i < len; i++){
+            root[i].style.backgroundColor = "white";
+        }           
+        let btn = document.getElementById("show_answer_button");
+        btn.value = "答えを表示";
+        btn.setAttribute("onclick","show_answer()");
+    }
+}
+
+async function call_maze(){
+    let maze_output = document.getElementById("maze");
+    while(maze_output.firstChild){
+        maze_output.removeChild(maze_output.firstChild);
+    }
+    let width = parseInt(document.getElementById("input_width").value);
+    let height = parseInt(document.getElementById("input_height").value);
+    let for_error_output = document.getElementById("error_output")
+    for_error_output.textContent = "";
+    if(Number.isNaN(width) || Number.isNaN(height)){
+        for_error_output.textContent = "error 空になっています";
+    }
+    else if(width % 2 == 0 || height % 2 == 0){
+        for_error_output.textContent = "error 幅または高さが偶数になっています";
+    }    
+    else if(width < 7 || height < 7){
+        for_error_output.textContent = "error 幅または高さは7以上にしてください";
+    }
+    else{
+        
+        let a = document.getElementById("is_finished");
+        a.value = false;
+        let btn = document.getElementById("show_answer_button");
+        btn.value = "答えを表示";
+        btn.setAttribute("onclick","show_answer()");
+        const maze = new Maze(width,height);
+        let checkbox = document.getElementById("checkbox");
+        if(checkbox.checked){
+
+            maze.soon_create_maze();
+            maze.solve_maze();
+            maze.maze_show();
+        }
+        else{
+            await maze.create_maze();
+            maze.add_answer_information();
+        }
+    }
+}
+
+class Cell{
+    constructor(x,y){
+        this.x = x;
+        this.y = y;
+    }
+}
+
+class Maze{
+    #width;
+    #height;
+    #startcell;
+    #endcell;
+    #maze;
+    #is_root;
+    #direction;
+    #start_Coordinate_list;
+    #maze_html;
+    #maze_Show;
+    constructor(width,height){
+        this.#maze_html = [];
+        this.#maze_Show = [];
+        this.#width = width;
+        this.#height = height;
+        let start_random_a = this.get_random_int(0,width - 2);
+        if(start_random_a % 2 == 0){
+            start_random_a += 1;
+        }
+        let start_random_b = this.get_random_int(0,height - 2);
+        if(start_random_b % 2 == 0){
+            start_random_b += 1;
+        }
+        this.#startcell = new Cell(start_random_a,start_random_b);
+        this.#endcell = new Cell(width - 2,height - 2);
+        this.#maze = new Array(height);
+        for(let i = 0; i < height; i ++){
+            this.#maze[i] = new Array(width).fill(true);
+        }
+        this.#is_root = new Array(height);
+        for(let i = 0; i < height; i ++){
+            this.#is_root[i] = new Array(width).fill(false);
+        }
+        this.#direction = [new Cell(1,0),new Cell(-1,0),new Cell(0,1),new Cell(0,-1)];
+        this.#start_Coordinate_list = [];
+    }
+    
+    soon_create_maze(){
+        for (let y = 0; y < this.#height; y++) {
+            for (let x = 0; x < this.#width; x++) {
+                if (x == 0 || y == 0 || x == this.#width - 1 || y == this.#height - 1) {
+                    this.#maze[y][x] = false;
+                }
+            }
+        }        
+        let dig_cell = this.#startcell;
+        this.soon_setpath(dig_cell);
+        while (true) {
+            let dig_direction = [];
+            let x = dig_cell.x;
+            let y = dig_cell.y;
+            if (this.#maze[y][x + 1] && this.#maze[y][x + 2]) {
+                dig_direction.push(this.#direction[0]);
+            }
+            if (this.#maze[y][x - 1] && this.#maze[y][x - 2]) {
+                dig_direction.push(this.#direction[1]);
+            }
+            if (this.#maze[y + 1][x] && this.#maze[y + 2][x]) {
+                dig_direction.push(this.#direction[2]);
+            }
+            if (this.#maze[y - 1][x] && this.#maze[y - 2][x]) {
+                dig_direction.push(this.#direction[3]);
+            }
+            let dig_direction_size = dig_direction.length;
+
+            if (dig_direction_size == 0) {
+                if (this.#start_Coordinate_list.length == 0) {
+                    break;
+                }
+                else {
+                    let cell_index = this.get_random_int(0, this.#start_Coordinate_list.length - 1);
+                    dig_cell = this.#start_Coordinate_list[cell_index];
+                    this.#start_Coordinate_list.splice(cell_index,1);
+                    continue;
+                }
+            }
+            let vector;
+            if (dig_direction_size == 1) {
+                vector = dig_direction[0];
+            }
+            else {
+                let vector_index = this.get_random_int(0, dig_direction_size - 1);
+                vector = dig_direction[vector_index];
+            }
+            this.soon_setpath(new Cell(x + vector.x, y + vector.y));
+            dig_cell = new Cell(x + 2 * vector.x, y + 2 * vector.y);
+            this.soon_setpath(dig_cell);
+        }
+        for (let y = 0; y < this.#height; ++y) {
+            for (let x = 0; x < this.#width; ++x) {
+                if (x == 0 || y == 0 || x == this.#width - 1 || y == this.#height - 1) {
+                    this.#maze[y][x] = true;
+                }
+            }
+        }
+    }
+    soon_setpath(path_cell) {
+        this.#maze[path_cell.y][path_cell.x] = false;
+        if (path_cell.x % 2 == 1 && path_cell.y % 2 == 1) {
+            this.#start_Coordinate_list.push(path_cell);
+        }
+    }
+
+     create_maze(){
+        
+   
+        let maze_output = document.getElementById("maze");
+
+
+
+        const rows = this.#height; // 行数
+        const cols = this.#width; // 列数
+        
+        for (let i = 0; i < rows; i++) {
+            this.#maze_html[i] = []; // 各行を空の配列で初期化
+          for (let j = 0; j < cols; j++) {
+            const div = document.createElement('div'); // div要素を作成
+            this.#maze_html[i][j] = div; // div要素を2次元配列に追加
+          }
+        }
+        
+
+        for (let y = 0; y < this.#height; ++y) {
+            let y_is_divved_by_2 = false;
+            let row = document.createElement("div");
+            if(y % 2 == 0){
+                y_is_divved_by_2 = true;
+            }
+
+
+            for (let x = 0; x < this.#width; ++x) {   
+                let cell_name;
+                // let cell_flag = false;
+                let x_is_divved_by_2 = false;
+                if(x % 2 == 0){
+                    x_is_divved_by_2 = true;
+                }
+
+                if(y_is_divved_by_2){
+                    if(x_is_divved_by_2){
+                        cell_name = "small-height-width-cell";
+                    }
+                    else{
+                        cell_name = "small-height-cell";
+                    }
+                }
+                else if(x_is_divved_by_2){
+                    cell_name = "small-width-cell";
+                }
+                else{
+                    cell_name = "cell";
+                }
+
+                let add_div = document.createElement("div");             
+                add_div.className = cell_name;
+
+                add_div.className += " wall";
+
+                this.#maze_html[y][x] = add_div;
+
+                
+                row.appendChild(add_div);
+            }
+            maze_output.appendChild(row);
+        }
+        maze_output.style.width = `${this.#width * 10}px`;
+
+
+        for (let y = 0; y < this.#height; y++) {
+            for (let x = 0; x < this.#width; x++) {
+                if (x == 0 || y == 0 || x == this.#width - 1 || y == this.#height - 1) {
+                    this.#maze[y][x] = false;
+                }
+            }
+        }        
+        let dig_cell = this.#startcell;
+        this.setpath(dig_cell);
+        while (true) {
+            let dig_direction = [];
+            let x = dig_cell.x;
+            let y = dig_cell.y;
+            if (this.#maze[y][x + 1] && this.#maze[y][x + 2]) {
+                dig_direction.push(this.#direction[0]);
+            }
+            if (this.#maze[y][x - 1] && this.#maze[y][x - 2]) {
+                dig_direction.push(this.#direction[1]);
+            }
+            if (this.#maze[y + 1][x] && this.#maze[y + 2][x]) {
+                dig_direction.push(this.#direction[2]);
+            }
+            if (this.#maze[y - 1][x] && this.#maze[y - 2][x]) {
+                dig_direction.push(this.#direction[3]);
+            }
+            let dig_direction_size = dig_direction.length;
+
+            if (dig_direction_size == 0) {
+                if (this.#start_Coordinate_list.length == 0) {
+                    break;
+                }
+                else {
+                    let cell_index = this.get_random_int(0, this.#start_Coordinate_list.length - 1);
+                    dig_cell = this.#start_Coordinate_list[cell_index];
+                    this.#start_Coordinate_list.splice(cell_index,1);
+                    continue;
+                }
+            }
+            let vector;
+            if (dig_direction_size == 1) {
+                vector = dig_direction[0];
+            }
+            else {
+                let vector_index = this.get_random_int(0, dig_direction_size - 1);
+                vector = dig_direction[vector_index];
+            }
+            this.setpath(new Cell(x + vector.x, y + vector.y));
+            dig_cell = new Cell(x + 2 * vector.x, y + 2 * vector.y);
+            
+            this.setpath(dig_cell);
+        }
+
+
+        for (let y = 0; y < this.#height; ++y) {
+            for (let x = 0; x < this.#width; ++x) {
+                if (x == 0 || y == 0 || x == this.#width - 1 || y == this.#height - 1) {
+                    this.#maze[y][x] = true;
+                }
+            }
+        }
+
+
+        const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+
+        // (async() =>{for(const element of this.#maze_Show){
+        //         element.classList.remove("wall"); // 削除したいクラス名を指定
+            
+        //         element.className += " blank";
+        //         await sleep(1);
+        //     }
+        //     let a = document.getElementById("is_finished");
+        //     a.value = true;
+        // })();
+
+
+
+
+
+
+
+
+
+
+        (async() =>{for(let i = 0; i < this.#maze_Show.length; ++i){
+            const element = this.#maze_Show[i];
+                element.classList.remove("wall"); // 削除したいクラス名を指定
+            
+                element.className += " blank";
+                if(i % 3 == 0){
+                    await sleep(1);
+                }
+            }
+            let a = document.getElementById("is_finished");
+            a.value = true;
+        })();
+        this.solve_maze();
+        
+    }
+
+    setpath(path_cell) {
+
+
+        this.#maze_Show.push(this.#maze_html[path_cell.y][path_cell.x]);
+
+        // const element = this.#maze_html[path_cell.y][path_cell.x];
+
+        // element.classList.remove("wall"); // 削除したいクラス名を指定
+
+        // element.className += " blank";
+        this.#maze[path_cell.y][path_cell.x] = false;
+        if (path_cell.x % 2 == 1 && path_cell.y % 2 == 1) {
+            this.#start_Coordinate_list.push(path_cell);
+        }
+        
+    }
+
+    
+    get_random_int(min,max){
+        let random = Math.floor(Math.random() * (max + 1 - min)) + min;
+        return random;
+    }
+
+    
+    solve_maze(){
+        let que = [];
+        let start = new Cell(1,1);
+        que.push(start);
+        let maze_arrive_check = new Array(this.#height);
+        for (let i = 0; i < this.#height; i++){
+            maze_arrive_check[i] = new Array(this.#width).fill(-1);
+        }
+        maze_arrive_check[1][1] = 1;
+        let stop = false;
+        let end_index = -1;
+        while (!que.length == 0 && !stop) {
+            let c = que.shift();
+            let dig_direction = [];
+            let x = c.x;
+            let y = c.y;
+            if (!this.#maze[y][x + 1]) {
+                dig_direction.push(this.#direction[0]);
+            }
+            if (!this.#maze[y][x - 1]) {
+                dig_direction.push(this.#direction[1]);
+            }
+            if (!this.#maze[y + 1][x]) {
+                dig_direction.push(this.#direction[2]);
+            }
+            if (!this.#maze[y - 1][x] ) {
+                dig_direction.push(this.#direction[3]);
+            }
+            if (dig_direction.length == 0) {
+                continue;
+            }
+            else {
+                for (let i = 0; i < dig_direction.length; i++) {
+                    let cell = new Cell(x + dig_direction[i].x, y + dig_direction[i].y);
+                    let index = maze_arrive_check[y][x];
+                    let next_index = maze_arrive_check[cell.y][cell.x];
+                    if (next_index == -1) {
+                        if (cell.x == this.#endcell.x && cell.y == this.#endcell.y) {
+                            maze_arrive_check[cell.y][cell.x] = index + 1;
+                            stop = true;
+                            end_index = index + 1;
+                        }
+                        else {
+                            maze_arrive_check[cell.y][cell.x] = index + 1;
+                            que.push(cell);
+                        }
+                    }
+                }
+            }
+        }
+        let last_cell = this.#endcell;
+        this.#is_root[this.#endcell.y][this.#endcell.x] = true;
+        for (let i = end_index; i > 1; i--) {
+            let x = last_cell.x;
+            let y = last_cell.y;
+            let next_cell;
+            if (maze_arrive_check[y][x+1] == i - 1) {
+                next_cell = new Cell(x + 1, y);
+            }
+            else if (maze_arrive_check[y][x-1] == i - 1) {
+                next_cell = new Cell(x - 1, y);
+            }
+            else if (maze_arrive_check[y+1][x]== i - 1) {
+                next_cell = new Cell(x, y + 1);
+            }
+            else if (maze_arrive_check[y-1][x] == i - 1) {
+                next_cell = new Cell(x, y - 1);
+            }
+
+            this.#is_root[next_cell.y][next_cell.x] = true;
+            last_cell = next_cell;
+        
+        }
+    }
+    add_answer_information(){
+        for(let y = 0; y < this.#height; ++y){
+            for(let x = 0; x < this.#width; ++x){
+                if(this.#is_root[y][x]){
+                    const element = this.#maze_html[y][x];
+
+                    element.classList.remove("blank"); // 削除したいクラス名を指定
+                
+                    element.className += " answer";
+                }
+            }
+        }
+
+    }
+    maze_show(){
+        let maze_output = document.getElementById("maze");
+        for (let y = 0; y < this.#height; ++y) {
+            let y_is_divved_by_2 = false;
+            let row = document.createElement("div");
+            if(y % 2 == 0){
+                y_is_divved_by_2 = true;
+            }
+            for (let x = 0; x < this.#width; ++x) {   
+                let cell_name;
+                let x_is_divved_by_2 = false;
+                if(x % 2 == 0){
+                    x_is_divved_by_2 = true;
+                }
+                if(y_is_divved_by_2){
+                    if(x_is_divved_by_2){
+                        cell_name = "small-height-width-cell";
+                    }
+                    else{
+                        cell_name = "small-height-cell";
+                    }
+                }
+                else if(x_is_divved_by_2){
+                    cell_name = "small-width-cell";
+                }
+                else{
+                    cell_name = "cell";
+                }
+
+                let add_div = document.createElement("div");             
+                add_div.className = cell_name;
+                switch (this.#maze[y][x]){
+                case true:
+                    add_div.className += " wall";
+                    break;
+                case false:
+                    switch(this.#is_root[y][x]){
+                        case true:
+                            add_div.className += " answer";
+                            add_div.style.backgroundColor = "white";
+                            break;
+                        case false:
+                            add_div.className += " blank";
+                            break;
+                    }
+                }
+                row.appendChild(add_div);
+            }
+            maze_output.appendChild(row);
+        }
+        maze_output.style.width = `${this.#width * 10}px`;
+    }
+
+}
+    </script>
+</head>    
+<body>
+    <p>幅:
+        <input type="number" id = "input_width" max="599" min="7" step="2">
+        高さ:
+        <input type="number" id = "input_height" max="599" min="7" step="2">
+        <input type = "checkbox" id = "checkbox" >
+        即時生成モード
+        <input type="button" value="実行" onclick="call_maze()">
+        <input type="button" id = "show_answer_button" value="答えを表示" onclick="show_answer()">
+
+        <input type = "hidden" id = "is_finished">
+
+    </p>
+    <p id = "error_output"></p>
+    <div id = "maze" style="line-height: 0;"></div>
+</body>
+</html>
+
+
