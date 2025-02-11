@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>maze_creater</title>
+    <title>maze_creator</title>
     <style>
         .cell{
             width: 10px;
@@ -36,6 +36,12 @@
         }
         .blank{
             background-color: white;
+        }
+        .hidden {
+            display: none;
+        }
+        .button {
+            font-size: 100%;
         }
 
         
@@ -110,7 +116,13 @@ async function call_maze(){
             maze.maze_show();
         }
         else{
-            await maze.create_maze();
+            let hidden = document.getElementById("hidden");
+            if(hidden.value == "true"){
+                hidden.value = false;
+            }
+            let button_skip = document.getElementById("skip_button");
+            button_skip.classList.remove("hidden");
+            const a = await maze.create_maze();
             maze.add_answer_information();
         }
     }
@@ -228,20 +240,17 @@ class Maze{
     }
 
      create_maze(){
-        
-   
+
         let maze_output = document.getElementById("maze");
 
-
-
-        const rows = this.#height; // 行数
-        const cols = this.#width; // 列数
+        const rows = this.#height; 
+        const cols = this.#width; 
         
         for (let i = 0; i < rows; i++) {
-            this.#maze_html[i] = []; // 各行を空の配列で初期化
+            this.#maze_html[i] = []; 
           for (let j = 0; j < cols; j++) {
-            const div = document.createElement('div'); // div要素を作成
-            this.#maze_html[i][j] = div; // div要素を2次元配列に追加
+            const div = document.createElement('div'); 
+            this.#maze_html[i][j] = div; 
           }
         }
         
@@ -256,7 +265,6 @@ class Maze{
 
             for (let x = 0; x < this.#width; ++x) {   
                 let cell_name;
-                // let cell_flag = false;
                 let x_is_divved_by_2 = false;
                 if(x % 2 == 0){
                     x_is_divved_by_2 = true;
@@ -356,36 +364,39 @@ class Maze{
 
         const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
 
-        // (async() =>{for(const element of this.#maze_Show){
-        //         element.classList.remove("wall"); // 削除したいクラス名を指定
-            
-        //         element.className += " blank";
-        //         await sleep(1);
-        //     }
-        //     let a = document.getElementById("is_finished");
-        //     a.value = true;
-        // })();
 
+        let correction = Math.floor((this.#width + this.#height) / 200);
+        if(correction == 0){
+            correction = 1;
+        }
 
-
-
-
-
-
-
-
-
+        let await_time = document.getElementById("speed").value * correction;
+        let checktime = 100;
         (async() =>{for(let i = 0; i < this.#maze_Show.length; ++i){
             const element = this.#maze_Show[i];
-                element.classList.remove("wall"); // 削除したいクラス名を指定
+                element.classList.remove("wall");
             
                 element.className += " blank";
-                if(i % 3 == 0){
+                if(i % await_time == 0){
                     await sleep(1);
+                }
+                if(i % checktime == 0){
+                    await_time = document.getElementById("speed").value * correction;
+                    
+                    let hidden = document.getElementById("hidden");
+                    if(hidden.value == "true"){
+                        await_time = Number.MAX_SAFE_INTEGER;
+                        checktime = Number.MAX_SAFE_INTEGER;
+                    } 
+                    
                 }
             }
             let a = document.getElementById("is_finished");
             a.value = true;
+            
+            let button_skip = document.getElementById("skip_button");
+            button_skip.classList.add("hidden");
+            
         })();
         this.solve_maze();
         
@@ -393,14 +404,8 @@ class Maze{
 
     setpath(path_cell) {
 
-
         this.#maze_Show.push(this.#maze_html[path_cell.y][path_cell.x]);
 
-        // const element = this.#maze_html[path_cell.y][path_cell.x];
-
-        // element.classList.remove("wall"); // 削除したいクラス名を指定
-
-        // element.className += " blank";
         this.#maze[path_cell.y][path_cell.x] = false;
         if (path_cell.x % 2 == 1 && path_cell.y % 2 == 1) {
             this.#start_Coordinate_list.push(path_cell);
@@ -495,7 +500,7 @@ class Maze{
                 if(this.#is_root[y][x]){
                     const element = this.#maze_html[y][x];
 
-                    element.classList.remove("blank"); // 削除したいクラス名を指定
+                    element.classList.remove("blank");
                 
                     element.className += " answer";
                 }
@@ -555,8 +560,15 @@ class Maze{
         }
         maze_output.style.width = `${this.#width * 10}px`;
     }
+}
+function skip_button_click() {
+ 
+    let hidden = document.getElementById("hidden");
+    hidden.value = true;
 
 }
+
+
     </script>
 </head>    
 <body>
@@ -570,10 +582,14 @@ class Maze{
         <input type="button" id = "show_answer_button" value="答えを表示" onclick="show_answer()">
 
         <input type = "hidden" id = "is_finished">
-
+        速度スライダー:
+        <input type="range" id = "speed" min = 1 max = 10 value = 1>
+        <input type="hidden" id = "hidden" value = false>
     </p>
     <p id = "error_output"></p>
     <div id = "maze" style="line-height: 0;"></div>
+    
+    <input type="button" size = 300 id = "skip_button" value = "アニメーションのskip" class = "hidden button" onclick="skip_button_click()">
 </body>
 </html>
 
