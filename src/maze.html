@@ -43,7 +43,6 @@
         .button {
             font-size: 100%;
         }
-
         
     </style>
     <script>
@@ -83,6 +82,8 @@ function hide_answer(){
 }
 
 async function call_maze(){
+    let main_button = document.getElementById("main_button");
+    main_button.disabled = true;
     let maze_output = document.getElementById("maze");
     while(maze_output.firstChild){
         maze_output.removeChild(maze_output.firstChild);
@@ -122,10 +123,15 @@ async function call_maze(){
             }
             let button_skip = document.getElementById("skip_button");
             button_skip.classList.remove("hidden");
-            const a = await maze.create_maze();
-            maze.add_answer_information();
+            
+            await maze.create_maze();
         }
     }
+    
+    let a = document.getElementById("is_finished");
+    a.value = true;
+        
+    main_button.disabled = false;
 }
 
 class Cell{
@@ -239,7 +245,7 @@ class Maze{
         }
     }
 
-     create_maze(){
+    async create_maze(){
 
         let maze_output = document.getElementById("maze");
 
@@ -288,7 +294,7 @@ class Maze{
                 let add_div = document.createElement("div");             
                 add_div.className = cell_name;
 
-                add_div.className += " wall";
+                add_div.classList.add("wall");
 
                 this.#maze_html[y][x] = add_div;
 
@@ -362,21 +368,24 @@ class Maze{
         }
 
 
-        const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+        const show_ = new Promise(async(resolve) => {
+            
+            const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
 
 
-        let correction = Math.floor((this.#width + this.#height) / 200);
-        if(correction == 0){
-            correction = 1;
-        }
+            let correction = Math.floor((this.#width + this.#height) / 200);
+            if(correction == 0){
+                correction = 1;
+            }
 
-        let await_time = document.getElementById("speed").value * correction;
-        let checktime = 100;
-        (async() =>{for(let i = 0; i < this.#maze_Show.length; ++i){
-            const element = this.#maze_Show[i];
+            let await_time = document.getElementById("speed").value * correction;
+            let checktime = 100;
+
+            for(let i = 0; i < this.#maze_Show.length; ++i){
+                const element = this.#maze_Show[i];
                 element.classList.remove("wall");
             
-                element.className += " blank";
+                element.classList.add ("blank");
                 if(i % await_time == 0){
                     await sleep(1);
                 }
@@ -391,16 +400,21 @@ class Maze{
                     
                 }
             }
-            let a = document.getElementById("is_finished");
-            a.value = true;
-            
-            let button_skip = document.getElementById("skip_button");
-            button_skip.classList.add("hidden");
-            
-        })();
-        this.solve_maze();
+            resolve();
+        });
+        const solve_ = new Promise(resolve => {
+            this.solve_maze();
+            this.add_answer_information();
+            resolve();
+        });
+
+        const [show,solve] = await Promise.all ([show_,solve_]);
+        
+        let button_skip = document.getElementById("skip_button");
+        button_skip.classList.add("hidden");
         
     }
+
 
     setpath(path_cell) {
 
@@ -502,7 +516,7 @@ class Maze{
 
                     element.classList.remove("blank");
                 
-                    element.className += " answer";
+                    element.classList.add("answer");
                 }
             }
         }
@@ -541,16 +555,16 @@ class Maze{
                 add_div.className = cell_name;
                 switch (this.#maze[y][x]){
                 case true:
-                    add_div.className += " wall";
+                    add_div.classList.add("wall");
                     break;
                 case false:
                     switch(this.#is_root[y][x]){
                         case true:
-                            add_div.className += " answer";
+                            add_div.classList.add("answer");
                             add_div.style.backgroundColor = "white";
                             break;
                         case false:
-                            add_div.className += " blank";
+                            add_div.classList.add("blank");
                             break;
                     }
                 }
@@ -578,7 +592,7 @@ function skip_button_click() {
         <input type="number" id = "input_height" max="599" min="7" step="2">
         <input type = "checkbox" id = "checkbox" >
         即時生成モード
-        <input type="button" value="実行" onclick="call_maze()">
+        <input type="button" id = "main_button" value="実行" onclick="call_maze()">
         <input type="button" id = "show_answer_button" value="答えを表示" onclick="show_answer()">
 
         <input type = "hidden" id = "is_finished">
@@ -588,6 +602,7 @@ function skip_button_click() {
     </p>
     <p id = "error_output"></p>
     <div id = "maze" style="line-height: 0;"></div>
+    <input type="hidden" id = "cancel" value = false>
     
     <input type="button" size = 300 id = "skip_button" value = "アニメーションのskip" class = "hidden button" onclick="skip_button_click()">
 </body>
